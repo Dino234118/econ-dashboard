@@ -1,0 +1,27 @@
+name: Update Economic Data
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # every day at 03:00 UTC (~8:30 AM IST)
+  workflow_dispatch:       # allow manual run from Actions tab
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+           pip install requests firebase-admin
+
+      - name: Run ETL script
+        run: python etl/update_econ_data.py
