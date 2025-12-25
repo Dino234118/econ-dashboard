@@ -24,7 +24,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests firebase-admin
+              pip install -r requirements.txt
+
 
       - name: Run ETL script
         run: python etl/update_econ_data.py
