@@ -1,6 +1,8 @@
 import os, json, requests
 import firebase_admin
 from firebase_admin import credentials, firestore
+import yfinance as yf
+from datetime import date
 
 
 # ---------- Firestore init ----------
@@ -87,41 +89,29 @@ def update_fx_inr_usd(db):
 # ---------- 3) Sensex index (Alpha Vantage TIME_SERIES_DAILY) ----------
 
 def update_sensex(db):
-    """
-    Fetch latest daily Sensex index value and store in 'sensex'.
-    Uses Alpha Vantage TIME_SERIES_DAILY API.
-    NOTE: If ^BSESN doesn't work with your key, use an ETF symbol
-          that tracks Sensex or Nifty instead.
-    """
-    api_key = os.environ["ALPHAVANTAGE_API_KEY"]
-    symbol = "^BSESN"   # change if your data source uses a different symbol
-    url = (
-        "https://www.alphavantage.co/query"
-        f"?function=TIME_SERIES_DAILY&symbol={symbol}"
-        f"&apikey={api_key}&outputsize=compact"
-    )
-    resp = requests.get(url)
-    resp.raise_for_status()
-    data = resp.json()
+    try:
+        sensex = yf.Ticker("^BSESN")
+        data = sensex.history(period="1d", interval="1d")
 
-    ts = data.get("Time Series (Daily)")
-    if not ts:
-        raise RuntimeError(f"Unexpected Sensex response: {data}")
+        if data.empty:
+            raise ValueError("No Sensex data received")
 
-    latest_date = sorted(ts.keys(), reverse=True)[0]
-    latest_row = ts[latest_date]
-    close_price = float(latest_row["4. close"])
+        latest_value = round(float(data["Close"].iloc[-1]), 2)
+        latest_date = str(date.today())
 
-    doc = {
-        "date": latest_date,
-        "value": close_price,
-        "unit": "index_points",
-        "indicator_name": "sensex_index",
-        "source": "alpha_vantage",
-    }
-    db.collection("sensex").document(latest_date).set(doc)
-    print(f"[sensex] updated {latest_date} = {close_price}")
+        doc = {
+            "date": latest_date,
+            "value": latest_value,
+            "unit": "index_points",
+            "indicator_name": "sensex_index",
+            "source": "yahoo_finance",
+        }
 
+        db.collection("sensex").document(latest_date).set(doc)
+        print(f"[sensex] updated {latest_date} = {latest_value}")
+
+    except Exception as e:
+        print("[sensex] update failed:", e)
 
 # ---------- main orchestration ----------
 
